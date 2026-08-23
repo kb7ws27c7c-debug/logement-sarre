@@ -1,0 +1,49 @@
+---
+# ==========================================================================
+#  Flathunter – recherche logement en Sarre (Sarrebruck / Homburg), <= 500 EUR
+#  Alertes par email. Tourne gratuitement sur GitHub Actions toutes les ~15 min.
+# ==========================================================================
+
+# Un seul passage par execution (GitHub Actions relance tout seul via le cron).
+loop:
+    active: no
+    sleeping_time: 900
+
+# Les recherches surveillees.
+urls:
+    # --- WG-Gesucht : Sarrebruck (appartements + studios/1 piece) ---
+    - https://www.wg-gesucht.de/wohnungen-in-Saarbruecken.116.2.1.0.html
+    - https://www.wg-gesucht.de/1-zimmer-wohnungen-in-Saarbruecken.116.1.1.0.html
+    # --- WG-Gesucht : Homburg (appartements + studios/1 piece) ---
+    - https://www.wg-gesucht.de/wohnungen-in-Homburg.247.2.1.0.html
+    - https://www.wg-gesucht.de/1-zimmer-wohnungen-in-Homburg.247.1.1.0.html
+    # --- Immowelt : toute la Sarre <= 500 EUR (inclut les petits villages) ---
+    - https://www.immowelt.de/suche/mieten/wohnung/preis--500/saarland/ad04de10
+
+# Filtres pour ne garder que ce qui t'interesse.
+filters:
+    max_price: 500
+    max_rooms: 2
+    excluded_titles:
+        - "\\bwg\\b"
+        - "wohngemeinschaft"
+        - "mitbewohner"
+        - "zwischenmiete"
+        - "tausch"
+        - "stellplatz"
+        - "garage"
+        - "gewerbe"
+
+# Mise en forme de l'email.
+message: |
+    {title}
+    Pieces: {rooms} | Surface: {size}
+    Loyer: {price}
+    Lieu: {address}
+    {url}
+
+title: "Logement Sarre – {title}"
+
+# Notification par email (via Apprise).
+notifiers:
+    - apprise
