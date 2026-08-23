@@ -1,0 +1,88 @@
+name: Recherche logement Sarre
+
+# Quand est-ce que ça tourne ?
+on:
+  schedule:
+    - cron: "*/15 * * * *"   # automatiquement toutes les 15 minutes
+  workflow_dispatch:          # + un bouton "Run workflow" pour lancer à la main
+
+# Empêche deux exécutions de se chevaucher
+concurrency:
+  group: flathunter-sarre
+  cancel-in-progress: false
+
+# Autorise le robot à sauvegarder la liste des annonces déjà vues
+permissions:
+  contents: write
+
+jobs:
+  chercher:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: 1) Récupérer ce dépôt
+        uses: actions/checkout@v4
+
+      - name: 2) Installer Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: 3) Télécharger Flathunter
+        run: git clone --depth 1 https://github.com/flathunters/flathunter.git _flathunter
+
+      - name: 4) Installer les dépendances
+        working-directory: _flathunter
+        run: |
+          python -m pip install --upgrade pip
+          pip install pipenv
+          pipenv sync
+
+      - name: 5) Préparer la configuration
+        env:
+          APPRISE_URL: ${{ secrets.APPRISE_URL }}
+        run: |
+          cp config.yaml run-config.yaml
+          if [ -f state/processed_ids.db ]; then
+            # Déjà initialisé : on envoie les vraies alertes email
+            printf '\napprise:\n    - "%s"\n' "$APPRISE_URL" >> run-config.yaml
+            echo "Mode normal : envoi des alertes email."
+          else
+            # Tout premier lancement : on remplit la mémoire SANS envoyer d'email
+            printf '\napprise:\n    - "json://localhost"\n' >> run-config.yaml
+            echo "PREMIER LANCEMENT : initialisation silencieuse (aucun email cette fois, c'est normal)."
+          fi
+
+      - name: 6) Email de test (seulement en lancement manuel)
+        if: github.event_name == 'workflow_dispatch'
+        working-directory: _flathunter
+        env:
+          APPRISE_URL: ${{ secrets.APPRISE_URL }}
+        run: |
+          pipenv run python - <<'PY'
+          import os, sys, apprise
+          a = apprise.Apprise()
+          a.add(os.environ["APPRISE_URL"])
+          ok = a.notify(
+              title="Logement Sarre — test",
+              body="Test reussi : la configuration email fonctionne. Vous recevrez ici les nouvelles annonces (Sarrebruck, Homburg, Sarre) jusqu'a 500 EUR.")
+          print("Email de test envoye." if ok else "ECHEC de l'envoi : verifiez le secret APPRISE_URL.")
+          sys.exit(0 if ok else 1)
+          PY
+
+      - name: 7) Lancer la recherche
+        working-directory: _flathunter
+        env:
+          FLATHUNTER_DATABASE_LOCATION: ${{ github.workspace }}/state
+        run: |
+          mkdir -p "$FLATHUNTER_DATABASE_LOCATION"
+          pipenv run python flathunt.py --config ../run-config.yaml \
+            || echo "Exécution terminée (des avertissements non bloquants peuvent apparaître)."
+
+      - name: 8) Sauvegarder la mémoire des annonces vues
+        if: always()
+        run: |
+          git config user.name "flathunter-bot"
+          git config user.email "actions@users.noreply.github.com"
+          git add state/processed_ids.db 2>/dev/null || true
+          git commit -m "maj annonces vues [skip ci]" 2>/dev/null && git push || echo "Rien de nouveau à sauvegarder."
