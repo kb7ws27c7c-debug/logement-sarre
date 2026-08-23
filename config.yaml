@@ -17,8 +17,8 @@ urls:
     # --- WG-Gesucht : Homburg (appartements + studios/1 piece) ---
     - https://www.wg-gesucht.de/wohnungen-in-Homburg.247.2.1.0.html
     - https://www.wg-gesucht.de/1-zimmer-wohnungen-in-Homburg.247.1.1.0.html
-    # --- Immowelt : toute la Sarre <= 500 EUR (inclut les petits villages) ---
-    - https://www.immowelt.de/suche/mieten/wohnung/preis--500/saarland/ad04de10
+    # --- Immowelt : toute la Sarre <= 400 EUR (inclut les petits villages) ---
+    - https://www.immowelt.de/suche/mieten/wohnung/preis--400/saarland/ad04de10
 
 # Filtres pour ne garder que ce qui t'interesse.
 filters:
